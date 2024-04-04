@@ -18,7 +18,7 @@
 % \iffalse
 %<package>\NeedsTeXFormat{LaTeX2e}[1999/12/01]
 %<package>\ProvidesPackage{graphviz} 
-%<package>   [2015/09/02 v0.95 .dtx graphviz file]
+%<package>   [2024/04/04 v0.96 .dtx graphviz file]
 %
 %<*driver>
 \documentclass{ltxdoc} 
@@ -68,7 +68,8 @@
 % corresponds to \textsf{graphviz}~\fileversion, dated \filedate.}}
 % \author{Derek Rayside $\langle$\texttt{drayside@uwaterloo.ca}$\rangle$ \\
 % with contributions from 
-% Ralf Hemmecke $\langle$\texttt{ralf@hemmecke.de}$\rangle$  }
+% Ralf Hemmecke $\langle$\texttt{ralf@hemmecke.de}$\rangle$ \\
+% Kevin Mauser $\langle$\texttt{kbmauser@gmail.com}$\rangle$ }
 %
 % \maketitle
 % 
@@ -175,19 +176,19 @@
 % 
 %    \begin{macrocode}
 \newif\ifsinglefile
-\DeclareOption{singlefile}{
+\DeclareOptionX{singlefile}{
     \singlefiletrue
     \AtBeginDocument{% open a new file handle
         \newwrite\masterdotfile%
-        \immediate\openout\masterdotfile=\@tmpdir tmpmaster.graphviz%
+        \immediate\openout\masterdotfile=\@tmpdirO tmpmaster.graphviz%
         \newwrite\mastergvprfile%
-        \immediate\openout\mastergvprfile=\@tmpdir tmpmaster.gvpr}
+        \immediate\openout\mastergvprfile=\@tmpdirO tmpmaster.gvpr}
     \AtEndDocument{% close the file
         % close the dot file and the gvpr file
         \immediate\closeout\masterdotfile%
         \immediate\closeout\mastergvprfile%
         % execute the gvpr file
-        \immediate\write18{gvpr -f \@tmpdir tmpmaster.gvpr \@tmpdir tmpmaster.graphviz}%
+        \immediate\write18{gvpr -f \@tmpdirO tmpmaster.gvpr \@tmpdirO tmpmaster.graphviz}%
         }}
 %    \end{macrocode}
 % \end{macro}
@@ -228,7 +229,7 @@
 %
 %    \begin{macrocode}
 \newif\ifpsfrag
-\DeclareOption{psfrag}{ \psfragtrue }
+\DeclareOptionX{psfrag}{ \psfragtrue }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -242,7 +243,7 @@
 %    \begin{macrocode}
 \newcommand{\@outext}{ps}
 \newcommand{\@outextspace}{ps }
-\DeclareOption{ps}{
+\DeclareOptionX{ps}{
     \renewcommand{\@outext}{ps}
     \renewcommand{\@outextspace}{ps }}
 %    \end{macrocode}
@@ -255,23 +256,65 @@
 % Tell Graphviz to generate PDF files as output.
 % 
 %    \begin{macrocode}
-\DeclareOption{pdf}{%
+\DeclareOptionX{pdf}{%
     \renewcommand{\@outext}{pdf}%
     \renewcommand{\@outextspace}{pdf }}
 %    \end{macrocode}
 % \end{macro}
 %
 %
-% \begin{macro}{tmpdir}
-% \changes{v0.93}{2013/08/15}{added tmpdir option}
+% \begin{macro}{auxdir}
+% \changes{v0.96}{2005/12/29}{added aux-directory compatibility, allow user-specified tmpdir}
 %
-% Write all generated files in |./tmp/|
+% Allow directing all generated files to auxiliary directory, whether or not tmpdir is used
 % 
 %    \begin{macrocode}
-\newcommand{\@tmpdir}{}
-\DeclareOption{tmpdir}{%
-    \immediate\write18{mkdir ./tmp/}%
-    \renewcommand{\@tmpdir}{./tmp/}}
+\newcommand{\@auxdirisempty}{}
+\newcommand{\@auxdirdefault}{./}    
+\newcommand{\@auxdir}{./}
+\newcommand{\@auxdirO}{}
+\DeclareOptionX{auxdir}{%
+    \renewcommand{\@auxdir}{#1}
+    \ifx\@auxdir\@auxdirdefault
+        \renewcommand{\@auxdir}{./}
+        \renewcommand{\@auxdirO}{\@auxdir}
+    \else
+        \ifx\@auxdir\@auxdirisempty
+            \renewcommand{\@auxdir}{./}
+            \renewcommand{\@auxdirO}{\@auxdir}
+        \else
+            \renewcommand{\@auxdir}{#1}
+            \renewcommand{\@auxdirO}{./\@auxdir/}
+        \fi
+    \fi
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{tmpdir}
+% \changes{v0.93}{2013/08/15}{added tmpdir option}
+% \changes{v0.96}{2005/12/29}{added aux-directory compatibility, allow user-specified tmpdir}
+%
+% Write all generated files in |./tmp/| by default or in user-specified directory.
+% Now compatible with using --aux-directory option when compiling document
+% 
+%    \begin{macrocode}
+\newcommand{\@tmpdirdefault}{tmp/}
+\newcommand{\@tmpdir}{tmp/}
+\newcommand{\@tmpdirO}{tmp/}
+\DeclareOptionX{tmpdir}{%
+    \renewcommand{\@tmpdir}{#1}
+    \ifx\@tmpdir\@tmpdirdefault
+        \renewcommand{\@tmpdir}{tmp/}
+    \else
+        \ifx\@tmpdir\@auxdirisempty
+            \renewcommand{\@tmpdir}{}
+        \else
+            \renewcommand{\@tmpdir}{#1}
+        \fi
+    \fi
+    \renewcommand{\@tmpdirO}{\@tmpdir}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -280,8 +323,30 @@
 % \paragraph{Set the default options}
 %
 %    \begin{macrocode}
-\ExecuteOptions{ps}
-\ProcessOptions\relax % LaTeX class guide says it is wise to relax
+\ExecuteOptionsX{tmpdir,auxdir,ps}
+\ProcessOptionsX\relax % LaTeX class guide says it is wise to relax
+
+\ifx\@auxdir\@auxdirisempty %when using aux-directory set proper path for .dot file creation and accessing
+    \ifx\@tmpdir\@auxdirisempty
+        \renewcommand{\@tmpdirO}{./}
+    \else
+        \renewcommand{\@tmpdirO}{\@auxdirO\@tmpdir}
+    \fi
+\else
+    \ifx\@tmpdir\@auxdirisempty
+        \renewcommand{\@tmpdirO}{\@auxdirO}
+    \else
+        \ifx\@auxdir\@tmpdir
+            \renewcommand{\@tmpdirO}{} 
+        \else
+            \ifx\@tmpdir\@tmpdirdefault
+                \renewcommand{\@tmpdirO}{\@tmpdir}
+            \else
+                \renewcommand{\@tmpdirO}{\@tmpdir}
+            \fi
+        \fi        
+    \fi
+\fi
 %    \end{macrocode}
 %
 %
@@ -295,6 +360,7 @@
 % renderings of graphs.
 %    \begin{macrocode}
 \RequirePackage{graphicx}
+\RequirePackage{kvoptions}
 \ifpsfrag \RequirePackage{psfrag} \fi
 %    \end{macrocode}
 %
@@ -383,10 +449,10 @@
     \ifsinglefile% write the graph to the master file
         \expandafter\def\csname -\endcsname{\string\n}%
         \immediate\write\masterdotfile{#1 #2 {#3}}%
-        \immediate\write\mastergvprfile{BEG_G { if ($.name == "#2") {writeG($G,"\@tmpdir#2.dot");} }}%
+        \immediate\write\mastergvprfile{BEG_G { if ($.name == "#2") {writeG($G,"\@tmpdirO#2.dot");} }}%
     \else% open a new file handle
         \newwrite\dotfile%
-        \immediate\openout\dotfile=\@tmpdir#2.dot%
+        \immediate\openout\dotfile=\@tmpdirO#2.dot%
         \expandafter\def\csname -\endcsname{\string\n}%
         \immediate\write\dotfile{#1 #2 {#3}}%
         \immediate\closeout\dotfile%
@@ -411,22 +477,22 @@
 %    \begin{macrocode}
 \newcommand{\inputdigraph}[3][scale=1]{
     % execute dot or neato (nb: requires latex -shell-escape)
-    \immediate\write18{#3 -T\@outextspace -o \@tmpdir#2.\@outextspace \@tmpdir#2.dot}
-    \IfFileExists{\@tmpdir#2.\@outext}{ % the postscript/pdf exists: include it
+    \immediate\write18{#3 -T\@outextspace -o \@auxdirO\@tmpdirO#2.\@outextspace \@auxdirO\@tmpdirO#2.dot}
+    \IfFileExists{\@auxdirO\@tmpdirO#2.\@outext}{ % the postscript/pdf exists: include it
             \ifpsfrag
                 % per the ladot 2.2 source code, psfrag has a problem with
                 % graphviz 2.2, and some sed hackery is necessary to work around
-                \immediate\write18{sed -ibackup -e "s/xshow/pop show/g" \@tmpdir#2.ps}
+                \immediate\write18{sed -ibackup -e "s/xshow/pop show/g" \@auxdirO\@tmpdirO#2.ps}
             \fi
-            \includegraphics[#1]{\@tmpdir#2.\@outext} 
+            \includegraphics[#1]{\@auxdirO\@tmpdirO#2.\@outext} 
         }
         % else: the postscript/pdf doesn't exist: tell the user how to create it
         { 
             \fbox{ \begin{tabular}{l}
                 The file \texttt{#2.\@outext} hasn't been created from 
-                \texttt{\@tmpdir#2.dot} yet. \\ 
-                Run `\texttt{dot -T\@outextspace -o \@tmpdir#2.\@outextspace \@tmpdir#2.dot}' 
-                to create it. \\
+                \texttt{\@auxdirO\@tmpdirO#2.dot} yet. \\ 
+                Run `\texttt{dot -T\@outextspace -o \@auxdirO\@tmpdirO#2.\@outextspace \\
+                \@auxdirO\@tmpdirO#2.dot}' to create it. \\
                 Or invoke \LaTeX\ with the \texttt{-shell-escape} option
                 to have this done automatically. \\
                 \end{tabular}}
