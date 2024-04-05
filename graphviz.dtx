@@ -22,7 +22,7 @@
 %
 %<*driver>
 \documentclass{ltxdoc} 
-\RequirePackage[psfrag]{graphviz} 
+\RequirePackage[psfrag,auxdir=.tex-build,tmpdir=.tex-build]{graphviz}
 \RequirePackage{url}
 \RequirePackage{calc}
 \EnableCrossrefs
@@ -123,7 +123,7 @@
 % \vspace{1ex}
 % 
 %   \hspace*{2em}\digraph[scale=0.5]{abc}{rankdir=LR; a->b->c;}
-%
+%	
 % \vspace{1ex}
 %
 % 
@@ -175,6 +175,9 @@
 % of \textsf{dot}.
 % 
 %    \begin{macrocode}
+\RequirePackage{kvoptions}
+\RequirePackage{ifthen}
+\RequirePackage{xkeyval}
 \newif\ifsinglefile
 \DeclareOptionX{singlefile}{
     \singlefiletrue
@@ -189,7 +192,8 @@
         \immediate\closeout\mastergvprfile%
         % execute the gvpr file
         \immediate\write18{gvpr -f \@tmpdirO tmpmaster.gvpr \@tmpdirO tmpmaster.graphviz}%
-        }}
+        }
+    }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -221,7 +225,7 @@
 % 
 % \vspace{1ex}
 % 
-%   \hspace*{2em}\psfrag{x2}[cc][cc]{$x^2$} \digraph[scale=0.5]{xy}{rankdir=LR; x2->y;}
+%   \hspace*{2em}\psfrag{x2}[cc][cc]{$x^2$}\digraph[scale=0.5]{xy}{rankdir=LR; x2->y;}
 %
 % \vspace{1ex}
 %
@@ -315,6 +319,7 @@
         \fi
     \fi
     \renewcommand{\@tmpdirO}{\@tmpdir}
+}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -326,7 +331,8 @@
 \ExecuteOptionsX{tmpdir,auxdir,ps}
 \ProcessOptionsX\relax % LaTeX class guide says it is wise to relax
 
-\ifx\@auxdir\@auxdirisempty %when using aux-directory set proper path for .dot file creation and accessing
+%when using aux-directory set proper path for .dot file creation and accessing
+\ifx\@auxdir\@auxdirisempty
     \ifx\@tmpdir\@auxdirisempty
         \renewcommand{\@tmpdirO}{./}
     \else
@@ -359,8 +365,9 @@
 % This package requires \textsf{graphicx} to include PostScript
 % renderings of graphs.
 %    \begin{macrocode}
-\RequirePackage{graphicx}
-\RequirePackage{kvoptions}
+\RequirePackage{graphicx} %psfrag option
+\RequirePackage{psfrag} %to process .ps into .pdf
+\RequirePackage{auto-pst-pdf} %to process .ps into .pdf
 \ifpsfrag \RequirePackage{psfrag} \fi
 %    \end{macrocode}
 %
@@ -482,19 +489,20 @@
             \ifpsfrag
                 % per the ladot 2.2 source code, psfrag has a problem with
                 % graphviz 2.2, and some sed hackery is necessary to work around
+                % Unix/Linux:
                 \immediate\write18{sed -ibackup -e "s/xshow/pop show/g" \@auxdirO\@tmpdirO#2.ps}
+                % Windows:
+                %\immediate\write18{get-content \@auxdirO\@tmpdirO#2.ps |  \%{\$_ -replace "xshow/pop" "show"}}
             \fi
-            \includegraphics[#1]{\@auxdirO\@tmpdirO#2.\@outext} 
+            \includegraphics[#1]{\@tmpdirO#2.\@outext} 
         }
         % else: the postscript/pdf doesn't exist: tell the user how to create it
         { 
             \fbox{ \begin{tabular}{l}
-                The file \texttt{#2.\@outext} hasn't been created from 
-                \texttt{\@auxdirO\@tmpdirO#2.dot} yet. \\ 
+                The file \texttt{#2.\@outext} hasn't been created from \texttt{\@auxdirO\@tmpdirO#2.dot} yet. \\ 
                 Run `\texttt{dot -T\@outextspace -o \@auxdirO\@tmpdirO#2.\@outextspace \\
                 \@auxdirO\@tmpdirO#2.dot}' to create it. \\
-                Or invoke \LaTeX\ with the \texttt{-shell-escape} option
-                to have this done automatically. \\
+                Or invoke \LaTeX\ with the \texttt{-shell-escape} option to have this done automatically. \\
                 \end{tabular}}
         }
 }
